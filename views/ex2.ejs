@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>커스텀 타일셋 테스트</title>
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+            margin-top: 20px;
+        }
+
+        .area {
+            position: absolute;
+            background: #fff;
+            border: 1px solid #888;
+            border-radius: 3px;
+            font-size: 12px;
+            top: -5px;
+            left: 15px;
+            padding: 2px;
+        }
+
+        .info {
+            font-size: 12px;
+            padding: 5px;
+        }
+
+        .info .title {
+            font-weight: bold;
+        }
+
+        .loader {
+            border: 16px solid #f3f3f3;
+            border-radius: 50%;
+            border-top: 16px solid #3498db;
+            width: 10px;
+            height: 10px;
+            -webkit-animation: spin 2s linear infinite;
+            /* Safari */
+            animation: spin 2s linear infinite;
+        }
+
+        /* Safari */
+        @-webkit-keyframes spin {
+            0% {
+                -webkit-transform: rotate(0deg);
+            }
+
+            100% {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="main">
+        <!--
+    <input id="fileUpload" type="file" multiple/>
+  -->
+        <div style="float: left;">
+            <button id="tileReset">타일셋 숨기기</button>
+            <button id="districtReset">구역 숨기기</button>
+            <button id="textReset">텍스트 숨기기</button>
+        </div>
+        <div class="loader" style="float: left; margin-left: 10px; display: none;"></div>
+    </div>
+    <div id="map"></div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.12.4.min.js"></script>
+    <script src="https://code.jquery.com/jquery-1.12.4.min.js"></script>
+    <script type="text/javascript"
+        src="//dapi.kakao.com/v2/maps/sdk.js?appkey=5aa4a8d37912d148490fa3365506187f"></script>
+    <script type="text/javascript" src="../static/sample.js"></script>
+    <script type="text/javascript" src="../static/sampleText.js"></script>
+    <link rel="stylesheet" type="text/css" href="../static/icons.css" />
+    <script type="text/javascript" src="../static/loadingoverlay.min.js"></script>
+    <script>
+        var mapContainer = document.getElementById('map'), // 지도를 표시할 div 
+            mapOption = {
+                center: new kakao.maps.LatLng(37.521745, 127.059844), // 지도의 중심좌표
+                level: 3 // 지도의 확대 레벨
+            };
+
+        // 지도를 표시할 div와  지도 옵션으로  지도를 생성합니다
+        var map = new kakao.maps.Map(mapContainer, mapOption);
+        var customOverlay = new kakao.maps.CustomOverlay({})
+        var infowindow = new kakao.maps.InfoWindow({ removable: true })
+
+
+
+        // 일반 지도와 스카이뷰로 지도 타입을 전환할 수 있는 지도타입 컨트롤을 생성합니다
+        var mapTypeControl = new kakao.maps.MapTypeControl();
+        // 지도 타입 컨트롤을 지도에 표시합니다
+        map.addControl(mapTypeControl, kakao.maps.ControlPosition.TOPRIGHT);
+
+        // JS 파일에서 구역 객체를 생성해서 담을 배열
+        let arrArea = new Array();
+
+        for (var i = 0; i < SAMPLE.features.length; i++) {
+            var tmpPoly
+            var path = []
+
+            if (SAMPLE.features[i].geometry.type == "MultiPolygon") {
+                for (var n = 0; n < SAMPLE.features[i].geometry.coordinates.length; n++) {
+                    tmp = SAMPLE.features[i].geometry.coordinates[n]
+                    tmpPoly = tmp[0]
+
+                    for (var j = 0; j < tmpPoly.length; j++) {
+                        path.push(new kakao.maps.LatLng(tmpPoly[j][1], tmpPoly[j][0]));
+                    }
+                    displayArea(SAMPLE.features[i].properties.Layer, path)
+                    path = []
+                }
+            }
+            else {
+                tmpPoly = SAMPLE.features[i].geometry.coordinates[0]
+                for (var j = 0; j < tmpPoly.length; j++) {
+                    path.push(new kakao.maps.LatLng(tmpPoly[j][1], tmpPoly[j][0]));
+                }
+                displayArea(SAMPLE.features[i].properties.Layer, path)
+                //map.setCenter(new kakao.maps.LatLng(tmpPoly[j - 1][1], tmpPoly[j - 1][0]))
+            }
+        }
+        //구역 객체 생성 메서드
+        function displayArea(dongName, path) {
+            // 지도에 표시할 다각형을 생성합니다
+            var polygon = new kakao.maps.Polygon({
+                map: map,
+                path: path, 				// 그려질 다각형의 좌표 배열입니다
+                strokeWeight: 1, 			// 선의 두께입니다
+                strokeColor: '#FF0000', 	// 선의 색깔입니다
+                strokeOpacity: 0.8, 		// 선의 불투명도 입니다 1에서 0 사이의 값이며 0에 가까울수록 투명합니다
+                strokeStyle: 'solid', 		// 선의 스타일입니다
+                fillColor: '#A2FF99', 		// 채우기 색깔입니다
+                fillOpacity: 0.7 			// 채우기 불투명도 입니다
+            })
+            arrArea.push(polygon);
+
+            kakao.maps.event.addListener(polygon, 'mouseover', function (mouseEvent) {
+                polygon.setOptions({ fillColor: '#09f' })
+                customOverlay.setContent('<div class="area">' + dongName + '</div>')
+                customOverlay.setPosition(mouseEvent.latLng)
+                customOverlay.setMap(map)
+            })
+
+            kakao.maps.event.addListener(polygon, 'mousemove', function (mouseEvent) {
+                customOverlay.setPosition(mouseEvent.latLng);
+            })
+
+            kakao.maps.event.addListener(polygon, 'mouseout', function () {
+                polygon.setOptions({ fillColor: '#fff' });
+                customOverlay.setMap(null);
+            })
+
+            kakao.maps.event.addListener(polygon, 'click', function (mouseEvent) {
+                var content = '<div class="info">' +
+                    '   <div class="title">' + dongName + '</div>' +
+                    '   <div class="size">총 면적 : 약 ' + Math.floor(polygon.getArea()).toString().replace(/\B(?<!\.\d*)(?=(\d{3})+(?!\d))/g, ",") + ' m<sup>2</sup></div>' +
+                    '</div>';
+
+                infowindow.setContent(content);
+                infowindow.setPosition(mouseEvent.latLng);
+                infowindow.setMap(map);
+            })
+        }
+
+        // 생성된 전체 텍스트 마커 객체를 담을 배열 
+        let arrText = new Array();
+
+        //지도위 텍스트 렌더링
+        for (var i = 0; i < SAMPLE_TEXT.features.length; i++) {
+            var obj = SAMPLE_TEXT.features[i]
+            if (obj.properties.Text != null) {
+                addMarker(new kakao.maps.LatLng(obj.geometry.coordinates[1], obj.geometry.coordinates[0]), obj.properties.Text, obj.properties.size, obj.properties.color)
+            }
+        }
+
+        //텍스트 마커 객체 생성
+        function addMarker(position, text, fontsize, color) {
+            //fontsize = fontsize * 5
+            var content = '<div style="font-size:' + fontsize + 'ex;color:' + color + ';">' + text + '</div>'
+            var customOverlay = new kakao.maps.CustomOverlay({
+                position: position,
+                content: content
+            })
+            customOverlay.setMap(map)
+            arrText.push(customOverlay);
+        }
+
+
+        //구역 표시 토글
+        var districtFlag = true;
+
+        //타일셋 표시 토글
+        var tileFlag = true;
+
+        //텍스트 표시 토글
+        var textFlag = true;
+
+        //구역 초기화 버튼 클릭
+        $('#districtReset').click(() => {
+            if (districtFlag) {
+                $('.loader')[0].style.display = '';
+                setTimeout(() => {
+                    for (var i = 0; i < arrArea.length; i++) {
+                        arrArea[i].setMap(null);
+                    }
+                    districtFlag = false;
+                    $('#districtReset')[0].innerHTML = '구역 보이기';
+                    $('.loader')[0].style.display = 'none'
+                }, 500);
+            }
+            else {
+                $('.loader')[0].style.display = '';
+                setTimeout(() => {
+                    for (var i = 0; i < arrArea.length; i++) {
+                        arrArea[i].setMap(map);
+                    }
+                    districtFlag = true;
+                    $('#districtReset')[0].innerHTML = '구역 숨기기';
+                    $('.loader')[0].style.display = 'none'
+                }, 500);
+            }
+        })
+
+        //타일 초기화 버튼 클릭
+        $('#tileReset').click(() => {
+            if (tileFlag) {
+                map.removeOverlayMapTypeId(kakao.maps.MapTypeId.GB_TILESET);
+                tileFlag = false;
+                $('#tileReset')[0].innerHTML = '타일 보이기';
+            }
+            else {
+                map.addOverlayMapTypeId(kakao.maps.MapTypeId.GB_TILESET);
+                tileFlag = true;
+                $('#tileReset')[0].innerHTML = '타일 숨기기';
+            }
+        })
+
+        //텍스트 초기화 버튼
+        $('#textReset').click(() => {
+            if (textFlag) {
+                for (var i = 0; i < arrText.length; i++) {
+                    arrText[i].setMap(null);
+                }
+                textFlag = false;
+                $('#textReset')[0].innerHTML = '텍스트 보이기';
+            }
+            else {
+                for (var i = 0; i < arrText.length; i++) {
+                    arrText[i].setMap(map);
+                }
+                textFlag = true;
+                $('#textReset')[0].innerHTML = '텍스트 숨기기';
+            }
+        })
+
+        $.ajax({
+            url: "/img/high",
+            type: "get",
+            success: function (result) {
+                if (result) {
+                    var urlArr = [];
+                    var nameArr = [];
+                    for (var i = 0; i < result.length; i++) {
+                        var tempXYZ = result[i].split(".");
+                        var xyz = tempXYZ[0].split("_");
+                        var url = result[i];
+                        nameArr.push(xyz);
+                        urlArr.push('static/img/high/' + url);
+                    }
+                    kakao.maps.Tileset.add('GB_TILESET',
+                        new kakao.maps.Tileset({
+                            width: 256,
+                            height: 256,
+                            getTile: function (x, y, z) {
+                                var div = document.createElement('div');
+                                for (var i = 0; i < result.length; i++) {
+                                    if (x == parseInt(nameArr[i][0]) && y == parseInt(nameArr[i][1]) && z == parseInt(nameArr[i][2])) {
+                                        div.style.fontSize = '36px';
+                                        div.style.fontWeight = 'bold';
+                                        div.style.lineHeight = '256px'
+                                        div.style.textAlign = 'center';
+                                        div.style.color = '#4D4D4D';
+                                        div.style.backgroundImage = `url(${urlArr[i]})`  //이미지
+                                    }
+                                }
+                                return div;
+                            }
+                        }));
+                    map.addOverlayMapTypeId(kakao.maps.MapTypeId.GB_TILESET);
+                }
+            }//success 
+        });
+    </script>
+</body>
+
+</html>
